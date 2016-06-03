@@ -1,7 +1,96 @@
 <h1>Events calendar</h1>
 
-<%= link_to 'Create event' %>
+<%= link_to 'Create event','#', :id => 'event-link', :remote => true %>
 
-<!-- Remove the following image tag and add the markup to create a basic weekly calendar -->
-<%= image_tag 'events_calendar', width: '100%' %>
+  <div id='calendar'></div>    <!--  Using full calendar gem-->
+  <div id="dialog" title="New Event"></div>
+  
+  
+  <!-- Can be moved to events.js file in assets/javascripts and load per view -->
+<script>
+  $(document).ready(function() {
+    $('#event-link').click(function(event){
+      create_event();
+      // Prevent link from following its href
+    });
+    // full calendar gem 
+    $('#calendar').fullCalendar({
+      defaultView: "agendaWeek",
+      height: 300,
+      slotMinutes: 15,
+        events: "/events",
+      dragOpacity: "0.5",
+      eventAfterRender: function(event, $el, view) {
+        var formattedTime = $.fullCalendar.formatDates(event.start, event.end, "HH:mm { - HH:mm}");
+        // If FullCalendar has removed the title div, then add the title to the time div like FullCalendar would do
+        if($el.find(".fc-event-title").length === 0) {
+            $el.find(".fc-event-time").text(formattedTime + " - " + event.title);
+        }
+        else {
+            $el.find(".fc-event-time").text(formattedTime);
+        }
+      },
 
+      dayClick: function(date, allDay, jsEvent, view) {
+        create_event();
+        
+      },
+      
+      eventClick: function(event, jsEvent, view){
+        var tag = $('#dialog');
+        $.ajax({
+          type: 'GET',
+          url: '/events/'+event.id,
+          error: function(){  },
+          success: function(data){
+              tag.html(data).dialog({
+                  width: 300,
+                  height: 300,
+                  modal: true
+              }).dialog('open');
+          },
+          complete: function (){}
+        });
+      },
+      eventAfterRender: function (event, $el, view) {
+                $el.removeClass('fc-short');
+            }
+    })
+    
+    function create_event(){
+      var calendar = $('#calendar');
+      var tag = $('#dialog');
+      $.ajax({
+        type: 'GET',
+        url: "/events/new",
+        error: function(){  },
+        success: function(data){
+          tag.html(data).dialog({
+            width: 600,
+            height: 400,
+            modal: true,
+            open: function (event, ui) {
+              $('#create_event').on('click', function (event) {
+                $.ajax({
+                  type: 'POST',
+                  data:$('#event_form').serialize(),
+                  url: '/events',
+                  error: function(xhr, status, error){
+                      return false;
+                  },
+                  success: function(data){
+                    calendar.fullCalendar('refetchEvents');
+                    tag.dialog( "close" );
+                  },
+                  complete: function (){   },
+                  cache: false
+                }); // Prevent link from following through to its given href
+              });  
+            }
+          });  
+        },
+        complete: function (){ }
+      }); 
+    }
+  });
+</script>
